@@ -1,6 +1,6 @@
 # qsim-circuit-stepper
 
-A C++ circuit “stepper” simulator skeleton with debugger-style hooks (Option C architecture).
+A C++ circuit “stepper” simulator skeleton with debugger-style hooks .
 This repository focuses on *circuit execution + stepping + observability*, and is designed to use a separate core math/statevector library.
 
 ## Goals
