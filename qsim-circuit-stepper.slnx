@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="qsim-circuit-stepper/qsim-circuit-stepper.vcxproj" />
+  <Project Path="qsim-circuit-stepper/qsim-circuit-stepper.vcxproj" Id="22316156-4cd0-437c-9d0d-b198ed8b85c6" />
 </Solution>

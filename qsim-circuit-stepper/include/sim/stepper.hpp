@@ -19,4 +19,4 @@ private:
     size_t pc = 0;
     std::vector<std::shared_ptr<Observer>> observers;
 };
-#pragma once
+
