@@ -14,4 +14,4 @@ public:
     // Optional: number of qubits
     virtual int num_qubits() const = 0;
 };
-pragma once
+

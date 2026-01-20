@@ -1,10 +1,11 @@
-// Stepper.cpp
 #include "sim/Stepper.hpp"
 
-Stepper::Stepper(const Circuit& c) : circuit(c) {}
+Stepper::Stepper(const Circuit& c, std::shared_ptr<IBackend> b)
+    : circuit(c), backend(std::move(b)) {
+}
 
 void Stepper::add_observer(std::shared_ptr<Observer> obs) {
-    observers.push_back(obs);
+    observers.push_back(std::move(obs));
 }
 
 bool Stepper::done() const {
@@ -16,13 +17,11 @@ void Stepper::step() {
 
     const auto& instr = circuit[pc];
 
-    for (auto& o : observers)
-        o->before_step(pc, instr);
+    for (auto& o : observers) o->before_step(pc, instr);
 
-    // backend.apply(instr)  <-- later
+    backend->apply(instr);
 
-    for (auto& o : observers)
-        o->after_step(pc, instr);
+    for (auto& o : observers) o->after_step(pc, instr);
 
     pc++;
 }
