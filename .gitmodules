@@ -1,0 +1,3 @@
+[submodule "vendor/tiny-1q-sim"]
+	path = vendor/tiny-1q-sim
+	url = git@github.com:StavrosMetalGear/Tiny-1-Qubit-Simulator-in-C-.git
