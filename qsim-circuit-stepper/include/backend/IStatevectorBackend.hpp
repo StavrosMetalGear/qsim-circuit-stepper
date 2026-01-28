@@ -1,17 +1,12 @@
 #pragma once
 #include "backend/IBackend.hpp"
+#include <cstdint>
 
-// Forward declare your statevector type (we will replace this name to match Repo #1)
-class Statevector;
+namespace qsim { class StateVector; }
 
 class IStatevectorBackend : public IBackend {
 public:
     virtual ~IStatevectorBackend() = default;
-
-    // Read-only access for observers (probabilities, Bloch, etc.)
-    virtual const Statevector& state() const = 0;
-
-    // Optional: number of qubits
-    virtual int num_qubits() const = 0;
+    virtual const qsim::StateVector& state() const = 0;
+    virtual std::uint32_t num_qubits() const = 0;
 };
-

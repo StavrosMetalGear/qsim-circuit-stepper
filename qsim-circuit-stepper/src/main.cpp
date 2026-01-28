@@ -8,8 +8,8 @@ int main() {
     c.add({ OpType::H, {0}, {} });
     c.add({ OpType::RZ, {0}, {1.57079632679} });
 
-    auto backend = std::make_shared<StatevectorBackend>(1);
-    Stepper stepper(c, backend);
+    auto backend = std::make_shared<StatevectorBackend>(1,1);
+    Stepper stepper(circuit, backend);
 
     while (!stepper.done()) {
         stepper.step();
