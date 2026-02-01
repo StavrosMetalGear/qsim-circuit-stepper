@@ -8,6 +8,11 @@ StatevectorBackend::StatevectorBackend(std::uint32_t num_qubits, std::size_t thr
     m_state.set_zero_state();
 }
 
+std::vector<std::complex<double>> StatevectorBackend::amplitudes() const {
+    const auto& amps = m_state.amplitudes();
+    return std::vector<std::complex<double>>(amps.begin(), amps.end());
+}
+
 void StatevectorBackend::apply(const Instruction& instr) {
     if (instr.targets.empty())
         throw std::runtime_error("Instruction has no targets");

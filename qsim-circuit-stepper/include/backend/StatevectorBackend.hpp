@@ -6,10 +6,12 @@
 #include <cstdint>
 #include <random>
 #include <stdexcept>
+#include <vector>
+#include <complex>
 
 // submodule headers
-#include "vendor/tiny-1q-sim/include/statevector.hpp"
-#include "vendor/tiny-1q-sim/include/gates.hpp"
+#include "statevector.hpp"
+#include "gates.hpp"
 
 class StatevectorBackend final : public IStatevectorBackend {
 public:
@@ -18,6 +20,8 @@ public:
     void apply(const Instruction& instr) override;
 
     const qsim::StateVector& state() const override { return m_state; }
+    std::vector<std::complex<double>> amplitudes() const override;
+
     std::uint32_t num_qubits() const override { return m_numQubits; }
 
 private:
