@@ -14,6 +14,16 @@ std::vector<std::complex<double>> StatevectorBackend::amplitudes() const {
 }
 
 void StatevectorBackend::apply(const Instruction& instr) {
+    if (instr.type == OpType::CNOT) {
+        if (instr.targets.size() != 2) {
+            throw std::runtime_error("CNOT requires 2 targets (control, target)");
+        }
+        const std::uint32_t c = static_cast<std::uint32_t>(instr.targets[0]);
+        const std::uint32_t t = static_cast<std::uint32_t>(instr.targets[1]);
+        m_state.CNOT(c, t, m_threads);
+        return;
+    }
+
     if (instr.targets.empty())
         throw std::runtime_error("Instruction has no targets");
 

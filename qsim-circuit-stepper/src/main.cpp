@@ -6,19 +6,18 @@
 #include <memory>
 
 int main() {
+    // Build a 2-qubit circuit: H(0), CNOT(0,1)
     Circuit c;
+    c.add({ OpType::H,    {0},   {} });
+    c.add({ OpType::CNOT, {0,1}, {} });
 
-    // Demo: H -> Z -> H (shows Bloch changes)
-    c.add({ OpType::H, {0}, {} });
-    c.add({ OpType::Z, {0}, {} });
-    c.add({ OpType::H, {0}, {} });
+    auto backend = std::make_shared<StatevectorBackend>(2, 1);
+    Stepper stepper(c, backend);
 
-    auto backend = std::make_shared<StatevectorBackend>(1, 1);
-    Stepper s(c, backend);
+    // Track Bloch vector of qubit 0 (try also qubit 1)
+    auto bloch0 = std::make_shared<BlochObserver>(backend, 0);
+    stepper.add_observer(bloch0);
 
-    auto bloch = std::make_shared<BlochObserver>(backend);
-    s.add_observer(bloch);
-
-    while (!s.done()) s.step();
+    while (!stepper.done()) stepper.step();
     return 0;
 }

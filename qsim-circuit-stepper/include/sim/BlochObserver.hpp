@@ -1,16 +1,19 @@
 #pragma once
+
 #include "sim/Observer.hpp"
 #include "backend/IStatevectorBackend.hpp"
 
 #include <memory>
+#include <cstdint>
 
-class BlochObserver : public Observer {
+class BlochObserver final : public Observer {
 public:
-    explicit BlochObserver(std::shared_ptr<IStatevectorBackend> b);
+    // Track Bloch vector for a chosen qubit index (0 = least significant bit)
+    BlochObserver(std::shared_ptr<IStatevectorBackend> backend, std::uint32_t qubit_index);
 
-    void before_step(std::size_t /*pc*/, const Instruction& /*instr*/) override {}
-    void after_step(std::size_t pc, const Instruction& instr) override;
+    void after_step(std::size_t step, const Instruction& instr) override;
 
 private:
-    std::shared_ptr<IStatevectorBackend> backend;
+    std::shared_ptr<IStatevectorBackend> m_backend;
+    std::uint32_t m_q = 0;
 };
