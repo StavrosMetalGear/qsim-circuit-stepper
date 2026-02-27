@@ -26,9 +26,9 @@ static const char* op_name(OpType t) {
 
 int main() {
     Circuit c;
-    c.add({ OpType::H,    {0},   {} });
-    c.add({ OpType::CNOT, {0,1}, {} });
-    c.add({ OpType::MEASURE, {0}, {} });
+    c.add({ OpType::H,       {0},   {} });
+    c.add({ OpType::CNOT,    {0,1}, {} });
+    c.add({ OpType::MEASURE, {0},   {} });
 
     auto backend = std::make_shared<StatevectorBackend>(2, 1);
     Stepper stepper(c, backend);
@@ -39,26 +39,21 @@ int main() {
     Runner runner(stepper);
 
     Breakpoints bp;
-    bp.op_types.insert(OpType::MEASURE);     // stop BEFORE MEASURE
+    bp.op_types.insert(OpType::MEASURE); // stop BEFORE measurement
 
-    // Run until breakpoint
     auto r = runner.run(bp);
 
-    if (r.reason != StopReason::Finished) {
-        std::cout << "Stopped at pc=" << r.pc << " before op " << op_name(r.next_instr.type) << "\n";
-    } else {
+    if (r.reason == StopReason::Finished) {
         std::cout << "Finished.\n";
         return 0;
     }
 
-    // Step once manually (execute MEASURE)
-    std::cout << "Manual step...\n";
+    std::cout << "Stopped at pc=" << r.pc << " before op " << op_name(r.next_instr.type) << "\n";
+
+    std::cout << "Manual step (execute that op)...\n";
     stepper.step();
 
-    // Continue to end
-    auto r2 = runner.run(Breakpoints{});
-    if (r2.reason == StopReason::Finished) {
-        std::cout << "Finished after continue.\n";
-    }
+    runner.run(Breakpoints{});
+    std::cout << "Finished after continue.\n";
     return 0;
 }

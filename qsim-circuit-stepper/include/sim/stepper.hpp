@@ -16,9 +16,9 @@ public:
 
     void add_observer(std::shared_ptr<Observer> obs);
 
-    // New: debugger helpers
+    // Debugger helpers
     std::size_t current_pc() const { return pc; }
-    Instruction peek() const { return circuit[pc]; }
+    Instruction peek() const { return circuit[pc]; } // only call when !done()
 
 private:
     const Circuit& circuit;
