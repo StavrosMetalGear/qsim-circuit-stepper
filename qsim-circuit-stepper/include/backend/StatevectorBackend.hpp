@@ -21,13 +21,20 @@ public:
 
     const qsim::StateVector& state() const override { return m_state; }
     std::vector<std::complex<double>> amplitudes() const override;
-
     std::uint32_t num_qubits() const override { return m_numQubits; }
+
+    // Step 5 additions
+    void reset() override;
+    void set_seed(std::uint64_t seed) override;
+    const std::vector<int>& last_measurements() const override { return m_lastMeas; }
 
 private:
     std::uint32_t m_numQubits = 1;
     std::size_t   m_threads   = 1;
 
     qsim::StateVector m_state;
-    std::mt19937_64   m_rng{std::random_device{}()};
+    std::mt19937_64   m_rng;
+
+    // last measurement results per qubit (size = num_qubits), -1 = not measured yet
+    std::vector<int> m_lastMeas;
 };

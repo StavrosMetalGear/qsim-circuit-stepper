@@ -3,9 +3,20 @@
 StatevectorBackend::StatevectorBackend(std::uint32_t num_qubits, std::size_t threads)
     : m_numQubits(num_qubits),
       m_threads(threads),
-      m_state(num_qubits)
+      m_state(num_qubits),
+      m_rng(0),
+      m_lastMeas(num_qubits, -1)
 {
     m_state.set_zero_state();
+}
+
+void StatevectorBackend::reset() {
+    m_state.set_zero_state();
+    std::fill(m_lastMeas.begin(), m_lastMeas.end(), -1);
+}
+
+void StatevectorBackend::set_seed(std::uint64_t seed) {
+    m_rng.seed(seed);
 }
 
 std::vector<std::complex<double>> StatevectorBackend::amplitudes() const {
@@ -40,9 +51,11 @@ void StatevectorBackend::apply(const Instruction& instr) {
         m_state.Z(t, m_threads);
         break;
 
-    case OpType::MEASURE:
-        (void)m_state.measure_qubit(t, m_rng);
+    case OpType::MEASURE: {
+        const int r = m_state.measure_qubit(t, m_rng);
+        if (t < m_lastMeas.size()) m_lastMeas[t] = r;
         break;
+    }
 
     default:
         throw std::runtime_error("Gate not implemented in backend yet");
