@@ -7,6 +7,7 @@
 #include "sim/BlochObserver.hpp"
 #include "sim/PhaseObserver.hpp"
 #include "sim/TraceObserver.hpp"
+#include "sim/MetricsObserver.hpp"
 #include "sim/CliOptions.hpp"
 
 #include <iostream>
@@ -33,7 +34,6 @@ static Circuit build_demo(const CliOptions& opt) {
     Circuit c;
 
     if (opt.demo == "bell") {
-        // H(0), CNOT(0,1), measure both
         c.add({ OpType::H,    {0},   {} });
         c.add({ OpType::CNOT, {0,1}, {} });
         c.add({ OpType::MEASURE, {0}, {} });
@@ -42,7 +42,6 @@ static Circuit build_demo(const CliOptions& opt) {
     }
 
     if (opt.demo == "rot1q") {
-        // Smooth rotations on 1 qubit
         c.add({ OpType::RX, {0}, {1.0} });
         c.add({ OpType::RZ, {0}, {0.7} });
         c.add({ OpType::RY, {0}, {1.2} });
@@ -84,6 +83,9 @@ int main(int argc, char** argv) {
         if (opt.enable_phase) {
             stepper.add_observer(std::make_shared<PhaseObserver>(backend, opt.phase_i, opt.phase_j));
         }
+        if (opt.enable_metrics) {
+            stepper.add_observer(std::make_shared<MetricsObserver>(backend, opt.metrics_qubit));
+        }
         if (!opt.trace_path.empty()) {
             stepper.add_observer(std::make_shared<TraceObserver>(
                 backend, opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
@@ -93,14 +95,10 @@ int main(int argc, char** argv) {
         Runner runner(stepper);
         Breakpoints bp;
 
-        if (opt.break_on_step) {
-            bp.step_indices.insert(opt.break_step);
-        }
+        if (opt.break_on_step) bp.step_indices.insert(opt.break_step);
         if (opt.break_on_op) {
             OpType t;
-            if (!parse_op(opt.break_op, t)) {
-                throw std::runtime_error("Unknown op for --break-on: " + opt.break_op);
-            }
+            if (!parse_op(opt.break_op, t)) throw std::runtime_error("Unknown op for --break-on: " + opt.break_op);
             bp.op_types.insert(t);
         }
 

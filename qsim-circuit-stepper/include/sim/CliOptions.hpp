@@ -21,14 +21,18 @@ struct CliOptions {
 
     bool enable_phase = true;
     std::size_t phase_i = 0;
-    std::size_t phase_j = 3;          // for bell defaults
+    std::size_t phase_j = 3;
+
+    // Phase C: metrics
+    bool enable_metrics = true;
+    std::uint32_t metrics_qubit = 0;
 
     // trace
-    std::string trace_path = "";      // empty => no trace
+    std::string trace_path = "";
 
     // breakpoints (step mode only)
     bool break_on_op = false;
-    std::string break_op = "";        // e.g. "MEASURE"
+    std::string break_op = "";
 
     bool break_on_step = false;
     std::size_t break_step = 0;

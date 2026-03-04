@@ -35,6 +35,10 @@ CliOptions parse_cli(int argc, char** argv) {
         } else if (a == "--phase") {
             opt.phase_i = (std::size_t)std::stoull(need("--phase"));
             opt.phase_j = (std::size_t)std::stoull(need("--phase"));
+        } else if (a == "--no-metrics") {
+            opt.enable_metrics = false;
+        } else if (a == "--metrics-qubit") {
+            opt.metrics_qubit = (std::uint32_t)std::stoul(need("--metrics-qubit"));
         } else if (a == "--break-on") {
             opt.break_on_op = true;
             opt.break_op = need("--break-on");
@@ -51,6 +55,7 @@ CliOptions parse_cli(int argc, char** argv) {
                 "  --trace path.csv\n"
                 "  --bloch-qubit q | --no-bloch\n"
                 "  --phase i j | --no-phase\n"
+                "  --metrics-qubit q | --no-metrics\n"
                 "  --break-on OP | --break-step k\n"
             );
         } else if (is_flag(a)) {
@@ -58,15 +63,19 @@ CliOptions parse_cli(int argc, char** argv) {
         }
     }
 
-    // sane defaults
+    // defaults by demo
     if (opt.demo == "rot1q") {
         opt.qubits = 1;
         opt.phase_i = 0;
         opt.phase_j = 1;
+        opt.metrics_qubit = 0;
+        opt.bloch_qubit = 0;
     } else if (opt.demo == "bell") {
         if (opt.qubits < 2) opt.qubits = 2;
         opt.phase_i = 0;
         opt.phase_j = 3;
+        opt.metrics_qubit = 0;
+        opt.bloch_qubit = 0;
     }
 
     return opt;
