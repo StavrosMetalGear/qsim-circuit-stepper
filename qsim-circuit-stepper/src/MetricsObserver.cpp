@@ -28,7 +28,7 @@ void MetricsObserver::after_step(std::size_t step, const Instruction&) {
     const std::uint32_t n = m_backend->num_qubits();
     if (n == 0 || m_q >= n) return;
 
-    const auto amps = m_backend->amplitudes();
+    const auto& amps = m_backend->amplitudes_ref();
     const std::size_t dim = amps.size();
     const std::size_t mask = (std::size_t(1) << m_q);
 

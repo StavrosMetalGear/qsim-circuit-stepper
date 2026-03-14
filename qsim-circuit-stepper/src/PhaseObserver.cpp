@@ -22,7 +22,7 @@ PhaseObserver::PhaseObserver(std::shared_ptr<IStatevectorBackend> backend,
 void PhaseObserver::after_step(std::size_t step, const Instruction& /*instr*/) {
     if (!m_backend) return;
 
-    auto amps = m_backend->amplitudes();
+    const auto& amps = m_backend->amplitudes_ref();
     if (amps.empty()) return;
 
     if (m_i >= amps.size() || m_j >= amps.size()) return;

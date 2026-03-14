@@ -9,7 +9,7 @@
 #include <vector>
 #include <complex>
 
-// submodule headers
+// tiny sim headers (via CMake include dirs)
 #include "statevector.hpp"
 #include "gates.hpp"
 
@@ -20,10 +20,15 @@ public:
     void apply(const Instruction& instr) override;
 
     const qsim::StateVector& state() const override { return m_state; }
+
+    // Old copy API
     std::vector<std::complex<double>> amplitudes() const override;
+
+    // New no-copy API
+    const std::vector<std::complex<double>>& amplitudes_ref() const override;
+
     std::uint32_t num_qubits() const override { return m_numQubits; }
 
-    // Step 5 additions
     void reset() override;
     void set_seed(std::uint64_t seed) override;
     const std::vector<int>& last_measurements() const override { return m_lastMeas; }
@@ -35,6 +40,5 @@ private:
     qsim::StateVector m_state;
     std::mt19937_64   m_rng;
 
-    // last measurement results per qubit (size = num_qubits), -1 = not measured yet
     std::vector<int> m_lastMeas;
 };

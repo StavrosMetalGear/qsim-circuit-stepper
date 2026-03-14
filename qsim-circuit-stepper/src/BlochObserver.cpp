@@ -14,7 +14,7 @@ void BlochObserver::after_step(std::size_t step, const Instruction& /*instr*/) {
     const std::uint32_t n = m_backend->num_qubits();
     if (n == 0 || m_q >= n) return;
 
-    const auto amps = m_backend->amplitudes();
+    const const auto& amps = m_backend->amplitudes_ref();
     const std::size_t dim = amps.size();
     if (dim == 0) return;
 

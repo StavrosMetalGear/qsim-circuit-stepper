@@ -101,7 +101,7 @@ void TraceObserver::after_step(std::size_t step, const Instruction& instr) {
     if (!m_backend || !m_out.is_open()) return;
 
     const std::uint32_t n = m_backend->num_qubits();
-    auto amps = m_backend->amplitudes();
+    const auto& amps = m_backend->amplitudes_ref();
 
     double x=0, y=0, z=0, p0=0, p1=0;
     if (n > 0 && m_q < n) {
