@@ -23,3 +23,60 @@ Open the Visual Studio solution and build/run the Console App.
 - Add Observers (probabilities, Bloch vector, trace logging)
 - Add breakpoints and “run until” controls
 - Add measurement sampling (shots + seeded RNG)
+
+## Build (CMake)
+
+Clone with submodules:
+
+```bash
+git clone --recurse-submodules git@github.com:StavrosMetalGear/qsim-circuit-stepper.git
+cd qsim-circuit-stepper
+
+git submodule update --init --recursive
+cmake -S . -B build
+cmake --build build -j
+./build/qsim_stepper --demo bell
+./build/qsim_stepper --demo rot1q --trace trace.csv
+./build/qsim_stepper --demo bell --shots 1000 --seed 7
+./build/qsim_stepper --demo bell --break-on MEASURE
+H 0
+CNOT 0 1
+MEASURE 0
+MEASURE 1
+./build/qsim_stepper --file circuits/bell.qc --shots 2000 --seed 7
+./build/qsim_stepper --file circuits/bell.qc --trace trace.csv
+ctest --test-dir build --output-on-failure
+
+### 2) Commit E4
+```bash
+git add README.md
+git commit -m "Phase E4: document build, CLI usage, and tests"
+git push
+mkdir -p .github/workflows
+
+cat > .github/workflows/ci.yml <<'EOF'
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+
+        run: cmake -S . -B build
+
+      - name: Build
+        run: cmake --build build -j 2
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
