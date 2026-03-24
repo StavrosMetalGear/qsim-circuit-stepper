@@ -5,11 +5,9 @@
 
 #include <cstdint>
 #include <random>
-#include <stdexcept>
 #include <vector>
 #include <complex>
 
-// tiny sim headers (via CMake include dirs)
 #include "statevector.hpp"
 #include "gates.hpp"
 
@@ -21,10 +19,7 @@ public:
 
     const qsim::StateVector& state() const override { return m_state; }
 
-    // Old copy API
     std::vector<std::complex<double>> amplitudes() const override;
-
-    // New no-copy API
     const std::vector<std::complex<double>>& amplitudes_ref() const override;
 
     std::uint32_t num_qubits() const override { return m_numQubits; }
@@ -33,12 +28,15 @@ public:
     void set_seed(std::uint64_t seed) override;
     const std::vector<int>& last_measurements() const override { return m_lastMeas; }
 
+    Rho2 reduced_density_1q(std::uint32_t q) const override;
+
+    bool try_get_amplitude(std::size_t index, Complex& out) const override;
+
 private:
     std::uint32_t m_numQubits = 1;
     std::size_t   m_threads   = 1;
 
     qsim::StateVector m_state;
     std::mt19937_64   m_rng;
-
-    std::vector<int> m_lastMeas;
+    std::vector<int>  m_lastMeas;
 };

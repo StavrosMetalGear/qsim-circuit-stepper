@@ -80,3 +80,23 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+
+## Examples
+
+Run the included demo circuits:
+
+```bash
+./build/qsim_stepper --file circuits/bell.qc
+./build/qsim_stepper --file circuits/bell.qc --shots 1000 --seed 7
+./build/qsim_stepper --file circuits/rot1q.qc --trace trace.csv
+./build/qsim_stepper --file circuits/bell.qc --break-on MEASURE
+./tools/run_demos.sh
+
+---
+
+## 4) Commit E6
+(Important: don’t commit `trace.csv` — it’s output.)
+```bash
+git add circuits tools/run_demos.sh README.md
+git commit -m "Phase E6: add example circuits and demo runner script"
+git push

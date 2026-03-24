@@ -364,3 +364,14 @@ FodyWeavers.xsd
 # build artifacts
 build/
 trace.csv
+
+# build artifacts
+build/
+trace.csv
+
+# editor / backups
+*.bak
+*~
+*.swp
+*~
+*.swp

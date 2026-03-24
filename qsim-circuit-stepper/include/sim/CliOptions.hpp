@@ -9,8 +9,8 @@ struct CliOptions {
     std::uint32_t qubits = 2;
     bool qubits_set = false;
 
-    std::string file_path = "";   // .qc
-    std::string qasm_path = "";   // .qasm  <-- E7
+    std::string file_path = "";
+    std::string qasm_path = "";
 
     std::uint32_t shots = 0;
 
@@ -34,6 +34,10 @@ struct CliOptions {
 
     bool break_on_step = false;
     std::size_t break_step = 0;
+
+    // E8
+    std::string backend = "statevector"; // statevector | density
+    double depolarize = 0.0;
 };
 
 CliOptions parse_cli(int argc, char** argv);

@@ -1,4 +1,4 @@
-# Bell state demo
+# Bell state (2 qubits)
 H 0
 CNOT 0 1
 MEASURE 0

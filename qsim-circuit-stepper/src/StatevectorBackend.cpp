@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <algorithm>
 
 using qsim::Complex;
 using qsim::Gate2x2;
@@ -64,8 +65,42 @@ std::vector<std::complex<double>> StatevectorBackend::amplitudes() const {
 }
 
 const std::vector<std::complex<double>>& StatevectorBackend::amplitudes_ref() const {
-    // m_state.amplitudes() returns const std::vector<Complex>& where Complex=std::complex<double>
     return m_state.amplitudes();
+}
+
+bool StatevectorBackend::try_get_amplitude(std::size_t index, Complex& out) const {
+    const auto& a = m_state.amplitudes();
+    if (index >= a.size()) return false;
+    out = a[index];
+    return true;
+}
+
+Rho2 StatevectorBackend::reduced_density_1q(std::uint32_t q) const {
+    const auto& amps = m_state.amplitudes();
+    const std::size_t dim = amps.size();
+    const std::size_t mask = (std::size_t(1) << q);
+
+    double rho00 = 0.0;
+    double rho11 = 0.0;
+    Complex rho01{0.0,0.0};
+
+    for (std::size_t i0 = 0; i0 < dim; ++i0) {
+        if ((i0 & mask) != 0) continue;
+        const std::size_t i1 = i0 | mask;
+        if (i1 >= dim) continue;
+        const auto a0 = amps[i0];
+        const auto a1 = amps[i1];
+        rho00 += std::norm(a0);
+        rho11 += std::norm(a1);
+        rho01 += a0 * std::conj(a1);
+    }
+
+    Rho2 r{};
+    r[0][0] = Complex(rho00,0);
+    r[1][1] = Complex(rho11,0);
+    r[0][1] = rho01;
+    r[1][0] = std::conj(rho01);
+    return r;
 }
 
 void StatevectorBackend::apply(const Instruction& instr) {

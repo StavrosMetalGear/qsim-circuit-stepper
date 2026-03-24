@@ -1,27 +1,21 @@
 #pragma once
 
-#include "backend/IBackend.hpp"
-#include <cstdint>
+#include "backend/IBackendEx.hpp"
 #include <complex>
 #include <vector>
+#include <cstdint>
 
 namespace qsim { class StateVector; }
 
-class IStatevectorBackend : public IBackend {
+class IStatevectorBackend : public IBackendEx {
 public:
     virtual ~IStatevectorBackend() = default;
 
     virtual const qsim::StateVector& state() const = 0;
 
-    // Old API (copy) - keep for tests/tools if you want
+    // Old API (copy)
     virtual std::vector<std::complex<double>> amplitudes() const = 0;
 
-    // New API (NO COPY) - observers should use this
+    // New API (no copy)
     virtual const std::vector<std::complex<double>>& amplitudes_ref() const = 0;
-
-    virtual std::uint32_t num_qubits() const = 0;
-
-    virtual void reset() = 0;
-    virtual void set_seed(std::uint64_t seed) = 0;
-    virtual const std::vector<int>& last_measurements() const = 0;
 };

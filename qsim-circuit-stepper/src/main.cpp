@@ -1,51 +1,39 @@
 #include "circuit/Circuit.hpp"
-#include "backend/StatevectorBackend.hpp"
 #include "sim/stepper.hpp"
 #include "sim/Runner.hpp"
 #include "sim/ShotsRunner.hpp"
 
 #include "sim/BlochObserver.hpp"
 #include "sim/PhaseObserver.hpp"
-#include "sim/TraceObserver.hpp"
 #include "sim/MetricsObserver.hpp"
+#include "sim/TraceObserver.hpp"
+
 #include "sim/CliOptions.hpp"
 #include "sim/CircuitParser.hpp"
 #include "sim/QasmParser.hpp"
+
+#include "backend/StatevectorBackend.hpp"
+#include "backend/DensityMatrixBackend.hpp"
 
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
-static bool parse_op(const std::string& s, OpType& out) {
-    if (s == "H") { out = OpType::H; return true; }
-    if (s == "X") { out = OpType::X; return true; }
-    if (s == "Y") { out = OpType::Y; return true; }
-    if (s == "Z") { out = OpType::Z; return true; }
-    if (s == "RX") { out = OpType::RX; return true; }
-    if (s == "RY") { out = OpType::RY; return true; }
-    if (s == "RZ") { out = OpType::RZ; return true; }
-    if (s == "CNOT") { out = OpType::CNOT; return true; }
-    if (s == "MEASURE") { out = OpType::MEASURE; return true; }
-    return false;
-}
-
-static Circuit build_demo(const CliOptions& opt) {
+static Circuit demo_bell() {
     Circuit c;
-    if (opt.demo == "bell") {
-        c.add({ OpType::H,    {0},   {} });
-        c.add({ OpType::CNOT, {0,1}, {} });
-        c.add({ OpType::MEASURE, {0}, {} });
-        c.add({ OpType::MEASURE, {1}, {} });
-        return c;
-    }
-    if (opt.demo == "rot1q") {
-        c.add({ OpType::RX, {0}, {1.0} });
-        c.add({ OpType::RZ, {0}, {0.7} });
-        c.add({ OpType::RY, {0}, {1.2} });
-        return c;
-    }
-    throw std::runtime_error("Unknown demo: " + opt.demo);
+    c.add({ OpType::H,    {0},   {} });
+    c.add({ OpType::CNOT, {0,1}, {} });
+    c.add({ OpType::MEASURE, {0}, {} });
+    c.add({ OpType::MEASURE, {1}, {} });
+    return c;
+}
+static Circuit demo_rot1q() {
+    Circuit c;
+    c.add({ OpType::RX, {0}, {1.0} });
+    c.add({ OpType::RZ, {0}, {0.7} });
+    c.add({ OpType::RY, {0}, {1.2} });
+    return c;
 }
 
 int main(int argc, char** argv) {
@@ -53,66 +41,56 @@ int main(int argc, char** argv) {
         CliOptions opt = parse_cli(argc, argv);
 
         Circuit c;
-
         if (!opt.qasm_path.empty()) {
-            auto parsed = QasmParser::parse_file(opt.qasm_path);
-            c = parsed.circuit;
-            if (!opt.qubits_set) opt.qubits = parsed.qubits;
+            auto pq = QasmParser::parse_file(opt.qasm_path);
+            c = pq.circuit;
+            if (!opt.qubits_set) opt.qubits = pq.qubits;
         } else if (!opt.file_path.empty()) {
-            auto parsed = CircuitParser::parse_file(opt.file_path);
-            c = parsed.circuit;
-            if (!opt.qubits_set) opt.qubits = parsed.inferred_qubits;
+            auto pc = CircuitParser::parse_file(opt.file_path);
+            c = pc.circuit;
+            if (!opt.qubits_set) opt.qubits = pc.inferred_qubits;
         } else {
-            c = build_demo(opt);
+            c = (opt.demo == "rot1q") ? demo_rot1q() : demo_bell();
         }
 
-        auto backend = std::make_shared<StatevectorBackend>(opt.qubits, 1);
+        std::shared_ptr<IBackendEx> backend;
+
+        if (opt.backend == "density") {
+            backend = std::make_shared<DensityMatrixBackend>(opt.qubits, opt.depolarize);
+        } else {
+            backend = std::make_shared<StatevectorBackend>(opt.qubits, 1);
+        }
+
         if (opt.has_seed) backend->set_seed(opt.seed);
 
         if (opt.shots > 0) {
             ShotsRunner sr(c, backend);
             auto hist = sr.run(opt.shots, opt.has_seed ? opt.seed : 0);
-
-            std::cout << "shots=" << opt.shots
-                      << " seed=" << (opt.has_seed ? std::to_string(opt.seed) : std::string("(none)"))
-                      << "\n";
-            for (const auto& [bits, count] : hist) {
-                std::cout << bits << " : " << count << "\n";
-            }
+            std::cout << "shots=" << opt.shots << " seed=" << (opt.has_seed ? std::to_string(opt.seed) : "(none)") << "\n";
+            for (auto& [k,v] : hist) std::cout << k << " : " << v << "\n";
             return 0;
         }
 
         Stepper stepper(c, backend);
 
         if (opt.enable_bloch) stepper.add_observer(std::make_shared<BlochObserver>(backend, opt.bloch_qubit));
-        if (opt.enable_phase) stepper.add_observer(std::make_shared<PhaseObserver>(backend, opt.phase_i, opt.phase_j));
         if (opt.enable_metrics) stepper.add_observer(std::make_shared<MetricsObserver>(backend, opt.metrics_qubit));
+
+        // Phase is statevector-only; if user wants it, only attach when using statevector backend
+        if (opt.enable_phase && opt.backend != "density") {
+            auto sv = std::dynamic_pointer_cast<IStatevectorBackend>(backend);
+            if (sv) stepper.add_observer(std::make_shared<PhaseObserver>(sv, opt.phase_i, opt.phase_j));
+        }
 
         if (!opt.trace_path.empty()) {
             stepper.add_observer(std::make_shared<TraceObserver>(
-                backend, opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
+                std::dynamic_pointer_cast<IStatevectorBackend>(backend), // trace phase only if statevector
+                opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
             ));
         }
 
-        Runner runner(stepper);
-        Breakpoints bp;
-
-        if (opt.break_on_step) bp.step_indices.insert(opt.break_step);
-        if (opt.break_on_op) {
-            OpType t;
-            if (!parse_op(opt.break_op, t)) throw std::runtime_error("Unknown op for --break-on: " + opt.break_op);
-            bp.op_types.insert(t);
-        }
-
-        auto r = runner.run(bp);
-
-        if (r.reason == StopReason::Finished) {
-            std::cout << "Finished.\n";
-            return 0;
-        }
-
-        std::cout << "Stopped at pc=" << r.pc << " (breakpoint)\n";
-        std::cout << "Tip: call stepper.step() manually or run again.\n";
+        while (!stepper.done()) stepper.step();
+        std::cout << "Finished.\n";
         return 0;
 
     } catch (const std::exception& e) {
