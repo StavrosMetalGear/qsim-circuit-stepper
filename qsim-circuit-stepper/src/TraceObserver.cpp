@@ -1,143 +1,79 @@
 #include "sim/TraceObserver.hpp"
 
-#include <complex>
-#include <iomanip>
 #include <cmath>
-#include <sstream>
+#include <iomanip>
+#include <limits>
 
-TraceObserver::TraceObserver(std::shared_ptr<IStatevectorBackend> backend,
-                             std::string csv_path,
-                             std::uint32_t bloch_qubit,
-                             std::size_t phase_i,
-                             std::size_t phase_j,
-                             double eps)
-    : m_backend(std::move(backend)),
-      m_out(std::move(csv_path)),
-      m_q(bloch_qubit),
-      m_i(phase_i),
-      m_j(phase_j),
-      m_eps(eps)
-{
-    // CSV header
-    m_out << "step,op,targets,params,bloch_q,x,y,z,p0,p1,phase_i,phase_j,phase_rad\n";
-    m_out.flush();
+static double clamp01(double x){ return x<0?0:(x>1?1:x); }
+static double H2(double p){
+    p = clamp01(p);
+    if (p<=0.0 || p>=1.0) return 0.0;
+    return -(p*std::log2(p) + (1.0-p)*std::log2(1.0-p));
 }
-
-TraceObserver::~TraceObserver() {
-    if (m_out.is_open()) m_out.flush();
-}
-
-const char* TraceObserver::op_name(OpType t) {
-    switch (t) {
-        case OpType::H: return "H";
-        case OpType::X: return "X";
-        case OpType::Y: return "Y";
-        case OpType::Z: return "Z";
-        case OpType::RX: return "RX";
-        case OpType::RY: return "RY";
-        case OpType::RZ: return "RZ";
-        case OpType::CNOT: return "CNOT";
-        case OpType::MEASURE: return "MEASURE";
-        default: return "?";
-    }
-}
-
-double TraceObserver::wrap_pi(double x) {
+static double wrap_pi(double x) {
     const double two_pi = 2.0 * M_PI;
     x = std::fmod(x + M_PI, two_pi);
     if (x < 0) x += two_pi;
     return x - M_PI;
 }
 
-void TraceObserver::reduced_bloch_and_probs(const std::vector<std::complex<double>>& amps,
-                                            std::uint32_t n,
-                                            std::uint32_t q,
-                                            double& x, double& y, double& z,
-                                            double& p0, double& p1) const
+TraceObserver::TraceObserver(std::shared_ptr<IBackendEx> backend,
+                             const std::string& csv_path,
+                             std::uint32_t qubit_for_metrics,
+                             std::size_t phase_i,
+                             std::size_t phase_j)
+    : m_backend(std::move(backend)),
+      m_out(csv_path),
+      m_q(qubit_for_metrics),
+      m_i(phase_i),
+      m_j(phase_j)
 {
-    const std::size_t dim = amps.size();
-    const std::size_t mask = (std::size_t(1) << q);
-
-    double rho00 = 0.0;
-    double rho11 = 0.0;
-    std::complex<double> rho01{0.0, 0.0};
-
-    for (std::size_t i0 = 0; i0 < dim; ++i0) {
-        if ((i0 & mask) != 0) continue;
-        const std::size_t i1 = i0 | mask;
-        if (i1 >= dim) continue;
-
-        const auto a0 = amps[i0];
-        const auto a1 = amps[i1];
-
-        rho00 += std::norm(a0);
-        rho11 += std::norm(a1);
-        rho01 += a0 * std::conj(a1);
+    if (!m_out) {
+        throw std::runtime_error("TraceObserver: could not open " + csv_path);
     }
-
-    x = 2.0 * rho01.real();
-    y = 2.0 * rho01.imag();
-    z = rho00 - rho11;
-
-    p0 = rho00;
-    p1 = rho11;
+    m_out << std::fixed << std::setprecision(10);
 }
 
-bool TraceObserver::relative_phase(const std::vector<std::complex<double>>& amps,
-                                   double& out_phi) const
-{
-    if (m_i >= amps.size() || m_j >= amps.size()) return false;
+void TraceObserver::after_step(std::size_t step, const Instruction&) {
+    if (!m_backend) return;
+    if (m_q >= m_backend->num_qubits()) return;
 
-    const auto ai = amps[m_i];
-    const auto aj = amps[m_j];
-
-    if (std::abs(ai) < m_eps || std::abs(aj) < m_eps) return false;
-
-    out_phi = wrap_pi(std::arg(aj) - std::arg(ai));
-    return true;
-}
-
-void TraceObserver::after_step(std::size_t step, const Instruction& instr) {
-    if (!m_backend || !m_out.is_open()) return;
-
-    const std::uint32_t n = m_backend->num_qubits();
-    const auto& amps = m_backend->amplitudes_ref();
-
-    double x=0, y=0, z=0, p0=0, p1=0;
-    if (n > 0 && m_q < n) {
-        reduced_bloch_and_probs(amps, n, m_q, x, y, z, p0, p1);
+    if (!m_wrote_header) {
+        m_out << "step,x,y,z,purity,coherence,bloch_len,entropy_bits,phase_rad\n";
+        m_wrote_header = true;
     }
 
-    double phi = 0.0;
-    const bool has_phi = relative_phase(amps, phi);
+    const auto r = m_backend->reduced_density_1q(m_q);
 
-    // targets as "0;1;2"
-    std::ostringstream tss;
-    for (std::size_t k = 0; k < instr.targets.size(); ++k) {
-        if (k) tss << ';';
-        tss << instr.targets[k];
-    }
+    const double rho00 = r[0][0].real();
+    const double rho11 = r[1][1].real();
+    const auto   rho01 = r[0][1];
 
-    // params as "0.1;0.2"
-    std::ostringstream pss;
-    for (std::size_t k = 0; k < instr.params.size(); ++k) {
-        if (k) pss << ';';
-        pss << instr.params[k];
+    const double x = 2.0 * rho01.real();
+    const double y = 2.0 * rho01.imag();
+    const double z = rho00 - rho11;
+
+    const double bloch_len = std::sqrt(x*x + y*y + z*z);
+    const double purity = rho00*rho00 + rho11*rho11 + 2.0*std::norm(rho01);
+    const double coherence = 2.0 * std::abs(rho01);
+
+    const double lam_plus = 0.5 * (1.0 + clamp01(bloch_len));
+    const double entropy = H2(lam_plus);
+
+    double phase = std::numeric_limits<double>::quiet_NaN();
+    Complex ai, aj;
+    if (m_backend->try_get_amplitude(m_i, ai) && m_backend->try_get_amplitude(m_j, aj)) {
+        if (std::abs(ai) > 1e-12 && std::abs(aj) > 1e-12) {
+            phase = wrap_pi(std::arg(aj) - std::arg(ai));
+        }
     }
 
     m_out << step << ","
-          << op_name(instr.type) << ","
-          << "\"" << tss.str() << "\"" << ","
-          << "\"" << pss.str() << "\"" << ","
-          << m_q << ","
-          << std::fixed << std::setprecision(10)
           << x << "," << y << "," << z << ","
-          << p0 << "," << p1 << ","
-          << m_i << "," << m_j << ",";
+          << purity << "," << coherence << "," << bloch_len << ","
+          << entropy << ",";
 
-    if (has_phi) m_out << phi;
-    else m_out << ""; // empty = N/A
-
+    if (!std::isnan(phase)) m_out << phase;
     m_out << "\n";
     m_out.flush();
 }

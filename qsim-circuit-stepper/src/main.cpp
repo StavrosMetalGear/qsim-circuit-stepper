@@ -84,8 +84,7 @@ int main(int argc, char** argv) {
 
         if (!opt.trace_path.empty()) {
             stepper.add_observer(std::make_shared<TraceObserver>(
-                std::dynamic_pointer_cast<IStatevectorBackend>(backend), // trace phase only if statevector
-                opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
+                backend, opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
             ));
         }
 
