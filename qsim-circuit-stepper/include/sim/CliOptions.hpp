@@ -38,6 +38,8 @@ struct CliOptions {
     // E8
     std::string backend = "statevector"; // statevector | density
     double depolarize = 0.0;
+    double dephase = 0.0;
+    double amp_damp = 0.0;
 };
 
 CliOptions parse_cli(int argc, char** argv);

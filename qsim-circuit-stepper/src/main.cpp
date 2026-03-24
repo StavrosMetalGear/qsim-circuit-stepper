@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
         std::shared_ptr<IBackendEx> backend;
 
         if (opt.backend == "density") {
-            backend = std::make_shared<DensityMatrixBackend>(opt.qubits, opt.depolarize);
+            backend = std::make_shared<DensityMatrixBackend>(opt.qubits, opt.depolarize, opt.dephase, opt.amp_damp);
         } else {
             backend = std::make_shared<StatevectorBackend>(opt.qubits, 1);
         }

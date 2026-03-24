@@ -30,14 +30,20 @@ CliOptions parse_cli(int argc, char** argv) {
         else if (a == "--metrics-qubit") opt.metrics_qubit = (std::uint32_t)std::stoul(need("--metrics-qubit"));
         else if (a == "--break-on") { opt.break_on_op = true; opt.break_op = need("--break-on"); }
         else if (a == "--break-step") { opt.break_on_step = true; opt.break_step = (std::size_t)std::stoull(need("--break-step")); }
+
         else if (a == "--backend") opt.backend = need("--backend");
         else if (a == "--depolarize") opt.depolarize = std::stod(need("--depolarize"));
+        else if (a == "--dephase") opt.dephase = std::stod(need("--dephase"));
+        else if (a == "--amp-damp") opt.amp_damp = std::stod(need("--amp-damp"));
+
         else if (a == "--help") {
             throw std::runtime_error(
                 "Usage:\n"
                 "  --file path.qc | --qasm path.qasm | --demo bell|rot1q\n"
                 "  --backend statevector|density\n"
                 "  --depolarize p\n"
+                "  --dephase gamma\n"
+                "  --amp-damp gamma\n"
                 "  --qubits N\n"
                 "  --shots N\n"
                 "  --seed S\n"

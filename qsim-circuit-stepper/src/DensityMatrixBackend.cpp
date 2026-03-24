@@ -16,11 +16,16 @@ static inline U2 make2(const Complex& a00, const Complex& a01,
     }};
 }
 
-DensityMatrixBackend::DensityMatrixBackend(std::uint32_t num_qubits, double depolarize_p)
+DensityMatrixBackend::DensityMatrixBackend(std::uint32_t num_qubits,
+                                           double depolarize_p,
+                                           double dephase_gamma,
+                                           double amp_damp_gamma)
     : m_n(num_qubits),
       m_dim(std::size_t(1) << num_qubits),
       m_rho(m_dim * m_dim, Complex(0,0)),
       m_depol(depolarize_p),
+      m_dephase(dephase_gamma),
+      m_ampdamp(amp_damp_gamma),
       m_rng(0),
       m_lastMeas(num_qubits, -1)
 {
@@ -29,7 +34,7 @@ DensityMatrixBackend::DensityMatrixBackend(std::uint32_t num_qubits, double depo
 
 void DensityMatrixBackend::reset() {
     std::fill(m_rho.begin(), m_rho.end(), Complex(0,0));
-    rho(0,0) = Complex(1,0); // |00..0><00..0|
+    rho(0,0) = Complex(1,0);
     std::fill(m_lastMeas.begin(), m_lastMeas.end(), -1);
 }
 
@@ -58,11 +63,11 @@ U2 DensityMatrixBackend::RZ(double t) {
     return make2({std::cos(-h),std::sin(-h)},{0,0},{0,0},{std::cos(h),std::sin(h)});
 }
 
-// Apply left and right multiplication: rho <- (U ⊗ I) rho (U† ⊗ I)
-void DensityMatrixBackend::apply_unitary_1q(std::uint32_t q, const U2& U) {
+// rho <- (A on q) * rho * (B on q)
+void DensityMatrixBackend::apply_linear_1q(std::uint32_t q, const U2& A, const U2& B) {
     const std::size_t mask = bitmask(q);
 
-    // Left multiply: for each column, update pairs of rows (i0,i1)
+    // Left multiply: for each column, update pairs of rows
     for (std::size_t col = 0; col < m_dim; ++col) {
         for (std::size_t i0 = 0; i0 < m_dim; ++i0) {
             if ((i0 & mask) != 0) continue;
@@ -71,12 +76,12 @@ void DensityMatrixBackend::apply_unitary_1q(std::uint32_t q, const U2& U) {
             const Complex a0 = rho(i0,col);
             const Complex a1 = rho(i1,col);
 
-            rho(i0,col) = U[0][0]*a0 + U[0][1]*a1;
-            rho(i1,col) = U[1][0]*a0 + U[1][1]*a1;
+            rho(i0,col) = A[0][0]*a0 + A[0][1]*a1;
+            rho(i1,col) = A[1][0]*a0 + A[1][1]*a1;
         }
     }
 
-    // Right multiply by U†
+    // Right multiply: for each row, update pairs of columns
     for (std::size_t row = 0; row < m_dim; ++row) {
         for (std::size_t j0 = 0; j0 < m_dim; ++j0) {
             if ((j0 & mask) != 0) continue;
@@ -85,10 +90,16 @@ void DensityMatrixBackend::apply_unitary_1q(std::uint32_t q, const U2& U) {
             const Complex b0 = rho(row,j0);
             const Complex b1 = rho(row,j1);
 
-            rho(row,j0) = b0*std::conj(U[0][0]) + b1*std::conj(U[0][1]);
-            rho(row,j1) = b0*std::conj(U[1][0]) + b1*std::conj(U[1][1]);
+            rho(row,j0) = b0*B[0][0] + b1*B[1][0];
+            rho(row,j1) = b0*B[0][1] + b1*B[1][1];
         }
     }
+}
+
+void DensityMatrixBackend::apply_unitary_1q(std::uint32_t q, const U2& U) {
+    U2 Ud = make2(std::conj(U[0][0]), std::conj(U[1][0]),
+                  std::conj(U[0][1]), std::conj(U[1][1])); // U†
+    apply_linear_1q(q, U, Ud);
 }
 
 void DensityMatrixBackend::apply_cnot(std::uint32_t control, std::uint32_t target) {
@@ -101,23 +112,19 @@ void DensityMatrixBackend::apply_cnot(std::uint32_t control, std::uint32_t targe
         return idx;
     };
 
-    // Left multiply by CNOT: permute rows
+    // permute rows
     std::vector<Complex> tmp(m_dim*m_dim, Complex(0,0));
     for (std::size_t i = 0; i < m_dim; ++i) {
         std::size_t ip = map_index(i);
-        for (std::size_t j = 0; j < m_dim; ++j) {
-            tmp[ip*m_dim + j] = rho(i,j);
-        }
+        for (std::size_t j = 0; j < m_dim; ++j) tmp[ip*m_dim + j] = rho(i,j);
     }
     m_rho.swap(tmp);
 
-    // Right multiply by CNOT (same)
+    // permute cols
     tmp.assign(m_dim*m_dim, Complex(0,0));
     for (std::size_t j = 0; j < m_dim; ++j) {
         std::size_t jp = map_index(j);
-        for (std::size_t i = 0; i < m_dim; ++i) {
-            tmp[i*m_dim + jp] = rho(i,j);
-        }
+        for (std::size_t i = 0; i < m_dim; ++i) tmp[i*m_dim + jp] = rho(i,j);
     }
     m_rho.swap(tmp);
 }
@@ -142,6 +149,51 @@ void DensityMatrixBackend::apply_depolarizing(std::uint32_t q, double p) {
     for (std::size_t k = 0; k < m_rho.size(); ++k) {
         m_rho[k] = (1.0 - p)*rho0[k] + (p/3.0)*(x[k] + y[k] + z[k]);
     }
+}
+
+// dephasing on qubit q: damp elements where bit differs
+void DensityMatrixBackend::apply_dephasing(std::uint32_t q, double gamma) {
+    if (gamma <= 0.0) return;
+    if (gamma > 1.0) gamma = 1.0;
+    const double f = (1.0 - gamma);
+    const std::size_t mask = bitmask(q);
+
+    for (std::size_t i = 0; i < m_dim; ++i) {
+        int bi = (i & mask) ? 1 : 0;
+        for (std::size_t j = 0; j < m_dim; ++j) {
+            int bj = (j & mask) ? 1 : 0;
+            if (bi != bj) rho(i,j) *= f;
+        }
+    }
+}
+
+// amplitude damping (Kraus):
+// E0 = [[1,0],[0,sqrt(1-g)]], E1 = [[0,sqrt(g)],[0,0]]
+void DensityMatrixBackend::apply_amplitude_damping(std::uint32_t q, double gamma) {
+    if (gamma <= 0.0) return;
+    if (gamma > 1.0) gamma = 1.0;
+
+    const double a = std::sqrt(1.0 - gamma);
+    const double b = std::sqrt(gamma);
+
+    U2 E0 = make2({1,0},{0,0},{0,0},{a,0});
+    U2 E1 = make2({0,0},{b,0},{0,0},{0,0});
+
+    auto rho_in = m_rho;
+
+    auto apply_k = [&](const U2& E)->std::vector<Complex> {
+        m_rho = rho_in;
+        U2 Ed = make2(std::conj(E[0][0]), std::conj(E[1][0]),
+                      std::conj(E[0][1]), std::conj(E[1][1]));
+        apply_linear_1q(q, E, Ed);
+        return m_rho;
+    };
+
+    auto r0 = apply_k(E0);
+    auto r1 = apply_k(E1);
+
+    m_rho = rho_in;
+    for (std::size_t k = 0; k < m_rho.size(); ++k) m_rho[k] = r0[k] + r1[k];
 }
 
 int DensityMatrixBackend::measure_qubit(std::uint32_t q) {
@@ -173,7 +225,6 @@ int DensityMatrixBackend::measure_qubit(std::uint32_t q) {
             else rho(i,j) /= p;
         }
     }
-
     return outcome;
 }
 
@@ -200,13 +251,19 @@ Rho2 DensityMatrixBackend::reduced_density_1q(std::uint32_t q) const {
 void DensityMatrixBackend::apply(const Instruction& instr) {
     if (instr.targets.empty()) throw std::runtime_error("Instruction has no targets");
 
+    auto apply_noise_on = [&](std::uint32_t q) {
+        if (m_depol > 0.0) apply_depolarizing(q, m_depol);
+        if (m_dephase > 0.0) apply_dephasing(q, m_dephase);
+        if (m_ampdamp > 0.0) apply_amplitude_damping(q, m_ampdamp);
+    };
+
     if (instr.type == OpType::CNOT) {
         if (instr.targets.size() != 2) throw std::runtime_error("CNOT requires 2 targets");
-        apply_cnot((std::uint32_t)instr.targets[0], (std::uint32_t)instr.targets[1]);
-        if (m_depol > 0.0) {
-            apply_depolarizing((std::uint32_t)instr.targets[0], m_depol);
-            apply_depolarizing((std::uint32_t)instr.targets[1], m_depol);
-        }
+        const auto c = (std::uint32_t)instr.targets[0];
+        const auto t = (std::uint32_t)instr.targets[1];
+        apply_cnot(c, t);
+        apply_noise_on(c);
+        apply_noise_on(t);
         return;
     }
 
@@ -236,5 +293,5 @@ void DensityMatrixBackend::apply(const Instruction& instr) {
         throw std::runtime_error("Unsupported op in DensityMatrixBackend");
     }
 
-    if (m_depol > 0.0) apply_depolarizing(q, m_depol);
+    apply_noise_on(q);
 }
