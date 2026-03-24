@@ -15,10 +15,15 @@ CliOptions parse_cli(int argc, char** argv) {
             return std::string(argv[++i]);
         };
 
-        if (a == "--demo") {
+        if (a == "--file") {
+            opt.file_path = need("--file");
+        } else if (a == "--qasm") {
+            opt.qasm_path = need("--qasm");
+        } else if (a == "--demo") {
             opt.demo = need("--demo");
         } else if (a == "--qubits") {
             opt.qubits = (std::uint32_t)std::stoul(need("--qubits"));
+            opt.qubits_set = true;
         } else if (a == "--shots") {
             opt.shots = (std::uint32_t)std::stoul(need("--shots"));
         } else if (a == "--seed") {
@@ -48,6 +53,8 @@ CliOptions parse_cli(int argc, char** argv) {
         } else if (a == "--help") {
             throw std::runtime_error(
                 "Usage:\n"
+                "  --file path.qc\n"
+                "  --qasm path.qasm\n"
                 "  --demo bell|rot1q\n"
                 "  --qubits N\n"
                 "  --shots N\n"
@@ -63,19 +70,17 @@ CliOptions parse_cli(int argc, char** argv) {
         }
     }
 
-    // defaults by demo
-    if (opt.demo == "rot1q") {
-        opt.qubits = 1;
-        opt.phase_i = 0;
-        opt.phase_j = 1;
-        opt.metrics_qubit = 0;
-        opt.bloch_qubit = 0;
-    } else if (opt.demo == "bell") {
-        if (opt.qubits < 2) opt.qubits = 2;
-        opt.phase_i = 0;
-        opt.phase_j = 3;
-        opt.metrics_qubit = 0;
-        opt.bloch_qubit = 0;
+    // demo defaults only if no file/qasm
+    if (opt.file_path.empty() && opt.qasm_path.empty()) {
+        if (opt.demo == "rot1q") {
+            opt.qubits = 1;
+            opt.phase_i = 0;
+            opt.phase_j = 1;
+        } else if (opt.demo == "bell") {
+            if (opt.qubits < 2) opt.qubits = 2;
+            opt.phase_i = 0;
+            opt.phase_j = 3;
+        }
     }
 
     return opt;

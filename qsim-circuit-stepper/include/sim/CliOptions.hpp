@@ -2,20 +2,21 @@
 #include <cstdint>
 #include <cstddef>
 #include <string>
-#include <vector>
 
 struct CliOptions {
-    std::string demo = "bell";        // bell | rot1q
+    std::string demo = "bell";
+
     std::uint32_t qubits = 2;
+    bool qubits_set = false;
 
-    // execution mode
-    std::uint32_t shots = 0;          // 0 => step mode, >0 => shots mode
+    std::string file_path = "";   // .qc
+    std::string qasm_path = "";   // .qasm  <-- E7
 
-    // deterministic
+    std::uint32_t shots = 0;
+
     bool has_seed = false;
     std::uint64_t seed = 0;
 
-    // observers
     bool enable_bloch = true;
     std::uint32_t bloch_qubit = 0;
 
@@ -23,14 +24,11 @@ struct CliOptions {
     std::size_t phase_i = 0;
     std::size_t phase_j = 3;
 
-    // Phase C: metrics
     bool enable_metrics = true;
     std::uint32_t metrics_qubit = 0;
 
-    // trace
     std::string trace_path = "";
 
-    // breakpoints (step mode only)
     bool break_on_op = false;
     std::string break_op = "";
 

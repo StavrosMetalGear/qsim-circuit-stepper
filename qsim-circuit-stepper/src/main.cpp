@@ -9,13 +9,14 @@
 #include "sim/TraceObserver.hpp"
 #include "sim/MetricsObserver.hpp"
 #include "sim/CliOptions.hpp"
+#include "sim/CircuitParser.hpp"
+#include "sim/QasmParser.hpp"
 
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
-// Parse op name for breakpoints
 static bool parse_op(const std::string& s, OpType& out) {
     if (s == "H") { out = OpType::H; return true; }
     if (s == "X") { out = OpType::X; return true; }
@@ -29,10 +30,8 @@ static bool parse_op(const std::string& s, OpType& out) {
     return false;
 }
 
-// Build demo circuits
 static Circuit build_demo(const CliOptions& opt) {
     Circuit c;
-
     if (opt.demo == "bell") {
         c.add({ OpType::H,    {0},   {} });
         c.add({ OpType::CNOT, {0,1}, {} });
@@ -40,27 +39,36 @@ static Circuit build_demo(const CliOptions& opt) {
         c.add({ OpType::MEASURE, {1}, {} });
         return c;
     }
-
     if (opt.demo == "rot1q") {
         c.add({ OpType::RX, {0}, {1.0} });
         c.add({ OpType::RZ, {0}, {0.7} });
         c.add({ OpType::RY, {0}, {1.2} });
         return c;
     }
-
     throw std::runtime_error("Unknown demo: " + opt.demo);
 }
 
 int main(int argc, char** argv) {
     try {
-        const CliOptions opt = parse_cli(argc, argv);
+        CliOptions opt = parse_cli(argc, argv);
 
-        Circuit c = build_demo(opt);
+        Circuit c;
+
+        if (!opt.qasm_path.empty()) {
+            auto parsed = QasmParser::parse_file(opt.qasm_path);
+            c = parsed.circuit;
+            if (!opt.qubits_set) opt.qubits = parsed.qubits;
+        } else if (!opt.file_path.empty()) {
+            auto parsed = CircuitParser::parse_file(opt.file_path);
+            c = parsed.circuit;
+            if (!opt.qubits_set) opt.qubits = parsed.inferred_qubits;
+        } else {
+            c = build_demo(opt);
+        }
+
         auto backend = std::make_shared<StatevectorBackend>(opt.qubits, 1);
-
         if (opt.has_seed) backend->set_seed(opt.seed);
 
-        // ---- SHOTS MODE ----
         if (opt.shots > 0) {
             ShotsRunner sr(c, backend);
             auto hist = sr.run(opt.shots, opt.has_seed ? opt.seed : 0);
@@ -74,18 +82,12 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        // ---- STEP MODE ----
         Stepper stepper(c, backend);
 
-        if (opt.enable_bloch) {
-            stepper.add_observer(std::make_shared<BlochObserver>(backend, opt.bloch_qubit));
-        }
-        if (opt.enable_phase) {
-            stepper.add_observer(std::make_shared<PhaseObserver>(backend, opt.phase_i, opt.phase_j));
-        }
-        if (opt.enable_metrics) {
-            stepper.add_observer(std::make_shared<MetricsObserver>(backend, opt.metrics_qubit));
-        }
+        if (opt.enable_bloch) stepper.add_observer(std::make_shared<BlochObserver>(backend, opt.bloch_qubit));
+        if (opt.enable_phase) stepper.add_observer(std::make_shared<PhaseObserver>(backend, opt.phase_i, opt.phase_j));
+        if (opt.enable_metrics) stepper.add_observer(std::make_shared<MetricsObserver>(backend, opt.metrics_qubit));
+
         if (!opt.trace_path.empty()) {
             stepper.add_observer(std::make_shared<TraceObserver>(
                 backend, opt.trace_path, opt.bloch_qubit, opt.phase_i, opt.phase_j
