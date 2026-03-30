@@ -375,3 +375,6 @@ trace.csv
 *.swp
 *~
 *.swp
+
+# demo outputs
+trace_*.csv
