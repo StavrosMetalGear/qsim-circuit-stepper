@@ -69,10 +69,14 @@ static void test_bell_shots_no_01_10() {
     assert(hist["11"] > 0);
 }
 
+void run_noise_tests();
+
 int main() {
     test_HH_identity();
     test_X_flip();
     test_bell_shots_no_01_10();
     std::cout << "All tests passed.\n";
+    run_noise_tests();
+run_noise_tests();
     return 0;
 }

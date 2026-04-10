@@ -34,10 +34,12 @@ list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 add_executable(qsim_tests
   "${STEPPER_DIR}/tests/test_core.cpp"
+  "${STEPPER_DIR}/tests/test_noise.cpp"
   ${TEST_SOURCES}
 )
 
 target_include_directories(qsim_tests PRIVATE "${STEPPER_DIR}/include")
+
 target_link_libraries(qsim_tests PRIVATE tiny_1q_sim)
 
 add_test(NAME qsim_tests COMMAND qsim_tests)
