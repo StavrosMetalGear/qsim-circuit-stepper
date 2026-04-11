@@ -34,6 +34,8 @@ list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 add_executable(qsim_tests
   "${STEPPER_DIR}/tests/test_core.cpp"
+  "${STEPPER_DIR}/tests/test_noise_cli.cpp"
+  "${STEPPER_DIR}/tests/test_qasm.cpp"
   "${STEPPER_DIR}/tests/test_noise.cpp"
   ${TEST_SOURCES}
 )

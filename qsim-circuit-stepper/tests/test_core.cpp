@@ -71,6 +71,10 @@ static void test_bell_shots_no_01_10() {
 
 void run_noise_tests();
 
+void run_qasm_tests();
+
+void run_noise_sanity_tests();
+
 int main() {
     test_HH_identity();
     test_X_flip();
