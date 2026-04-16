@@ -6,18 +6,24 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Configure
+      - name: Configure (CMake)
         run: cmake -S . -B build
 
       - name: Build
-        run: cmake --build build -j 2
+        run: cmake --build build --config Release -j
 
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+      - name: Test (ctest)
+        run: ctest --test-dir build --output-on-failure -C Release
