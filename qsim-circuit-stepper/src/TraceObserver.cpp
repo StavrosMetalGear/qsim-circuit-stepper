@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iomanip>
 #include <limits>
+#include <sstream>
 
 static double clamp01(double x){ return x<0?0:(x>1?1:x); }
 static double H2(double p){
@@ -15,6 +16,40 @@ static double wrap_pi(double x) {
     x = std::fmod(x + M_PI, two_pi);
     if (x < 0) x += two_pi;
     return x - M_PI;
+}
+
+static const char* op_name(OpType t) {
+    switch (t) {
+    case OpType::H: return "H";
+    case OpType::X: return "X";
+    case OpType::Y: return "Y";
+    case OpType::Z: return "Z";
+    case OpType::RX: return "RX";
+    case OpType::RY: return "RY";
+    case OpType::RZ: return "RZ";
+    case OpType::CNOT: return "CNOT";
+    case OpType::MEASURE: return "MEASURE";
+    default: return "UNKNOWN";
+    }
+}
+
+static std::string join_ints(const std::vector<int>& v) {
+    std::ostringstream oss;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        oss << v[i];
+        if (i + 1 < v.size()) oss << ",";
+    }
+    return oss.str();
+}
+
+static std::string join_doubles(const std::vector<double>& v) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(10);
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        oss << v[i];
+        if (i + 1 < v.size()) oss << ",";
+    }
+    return oss.str();
 }
 
 TraceObserver::TraceObserver(std::shared_ptr<IBackendEx> backend,
@@ -34,12 +69,13 @@ TraceObserver::TraceObserver(std::shared_ptr<IBackendEx> backend,
     m_out << std::fixed << std::setprecision(10);
 }
 
-void TraceObserver::after_step(std::size_t step, const Instruction&) {
+void TraceObserver::after_step(std::size_t step, const Instruction& instr) {
     if (!m_backend) return;
     if (m_q >= m_backend->num_qubits()) return;
 
     if (!m_wrote_header) {
-        m_out << "step,x,y,z,purity,coherence,bloch_len,entropy_bits,phase_rad\n";
+        // Keep existing columns first (compat with plotting), add new columns at end.
+        m_out << "step,x,y,z,purity,coherence,bloch_len,entropy_bits,phase_rad,op,targets,params,meas_out\n";
         m_wrote_header = true;
     }
 
@@ -68,12 +104,32 @@ void TraceObserver::after_step(std::size_t step, const Instruction&) {
         }
     }
 
+    // New G2 fields
+    const std::string op = op_name(instr.type);
+    const std::string targets = join_ints(instr.targets);
+    const std::string params = join_doubles(instr.params);
+
+    // If this was a measurement, try to fetch the last measured value (best-effort)
+    std::string meas_out = "";
+    if (instr.type == OpType::MEASURE && !instr.targets.empty()) {
+        const auto& meas = m_backend->last_measurements();
+        const int q = instr.targets[0];
+        if (q >= 0 && (std::size_t)q < meas.size() && (meas[q] == 0 || meas[q] == 1)) {
+            meas_out = (meas[q] == 1) ? "1" : "0";
+        }
+    }
+
     m_out << step << ","
           << x << "," << y << "," << z << ","
           << purity << "," << coherence << "," << bloch_len << ","
           << entropy << ",";
 
     if (!std::isnan(phase)) m_out << phase;
-    m_out << "\n";
+    m_out << "," << op
+          << "," << targets
+          << "," << params
+          << "," << meas_out
+          << "\n";
+
     m_out.flush();
 }
