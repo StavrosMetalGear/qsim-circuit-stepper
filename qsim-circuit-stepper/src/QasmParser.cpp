@@ -217,6 +217,7 @@ ParsedQasm QasmParser::parse_file(const std::string& path) {
                 throw std::runtime_error(path + ":" + std::to_string(lineno) + " bad u*()");
 
             auto inside = op.substr(l + 1, r - (l + 1));
+
             auto args = split(inside, ',');
 
             if (starts_with(op, "u3(")) {
