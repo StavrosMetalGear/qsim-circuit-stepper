@@ -34,12 +34,19 @@ struct CliOptions {
 
     bool break_on_step = false;
     std::size_t break_step = 0;
-
+// G4
+bool dump_state = false;              // statevector amplitudes (small N)
+bool dump_rho = false;                // reduced density matrix for one qubit
+std::uint32_t dump_rho_qubit = 0;
     // E8
     std::string backend = "statevector"; // statevector | density
     double depolarize = 0.0;
     double dephase = 0.0;
     double amp_damp = 0.0;
+
+    // G1
+    bool list_demos = false;
+    bool print_circuit = false;
 };
 
 CliOptions parse_cli(int argc, char** argv);

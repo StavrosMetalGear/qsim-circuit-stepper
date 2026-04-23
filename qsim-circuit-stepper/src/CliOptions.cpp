@@ -22,36 +22,43 @@ CliOptions parse_cli(int argc, char** argv) {
         else if (a == "--shots") opt.shots = (std::uint32_t)std::stoul(need("--shots"));
         else if (a == "--seed") { opt.has_seed = true; opt.seed = (std::uint64_t)std::stoull(need("--seed")); }
         else if (a == "--trace") opt.trace_path = need("--trace");
+
         else if (a == "--no-bloch") opt.enable_bloch = false;
         else if (a == "--bloch-qubit") opt.bloch_qubit = (std::uint32_t)std::stoul(need("--bloch-qubit"));
+
         else if (a == "--no-phase") opt.enable_phase = false;
         else if (a == "--phase") { opt.phase_i = (std::size_t)std::stoull(need("--phase")); opt.phase_j = (std::size_t)std::stoull(need("--phase")); }
+
         else if (a == "--no-metrics") opt.enable_metrics = false;
         else if (a == "--metrics-qubit") opt.metrics_qubit = (std::uint32_t)std::stoul(need("--metrics-qubit"));
+
         else if (a == "--break-on") { opt.break_on_op = true; opt.break_op = need("--break-on"); }
         else if (a == "--break-step") { opt.break_on_step = true; opt.break_step = (std::size_t)std::stoull(need("--break-step")); }
-
+       else if (a == "--dump-state") opt.dump_state = true;
+else if (a == "--dump-rho-qubit") { opt.dump_rho = true; opt.dump_rho_qubit = (std::uint32_t)std::stoul(need("--dump-rho-qubit")); }
         else if (a == "--backend") opt.backend = need("--backend");
         else if (a == "--depolarize") opt.depolarize = std::stod(need("--depolarize"));
         else if (a == "--dephase") opt.dephase = std::stod(need("--dephase"));
         else if (a == "--amp-damp") opt.amp_damp = std::stod(need("--amp-damp"));
+
+        // G1
+        else if (a == "--list-demos") opt.list_demos = true;
+        else if (a == "--print-circuit") opt.print_circuit = true;
 
         else if (a == "--help") {
             throw std::runtime_error(
                 "Usage:\n"
                 "  --file path.qc | --qasm path.qasm | --demo bell|rot1q\n"
                 "  --backend statevector|density\n"
-                "  --depolarize p\n"
-                "  --dephase gamma\n"
-                "  --amp-damp gamma\n"
-                "  --qubits N\n"
-                "  --shots N\n"
-                "  --seed S\n"
+                "  --depolarize p --dephase gamma --amp-damp gamma\n"
+                "  --qubits N --shots N --seed S\n"
                 "  --trace path.csv\n"
                 "  --bloch-qubit q | --no-bloch\n"
                 "  --phase i j | --no-phase\n"
                 "  --metrics-qubit q | --no-metrics\n"
                 "  --break-on OP | --break-step k\n"
+                "  --list-demos\n"
+                "  --print-circuit\n"
             );
         } else if (is_flag(a)) {
             throw std::runtime_error("Unknown flag: " + a);
